@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='pubplotlib',
+    name='tweakfig',
     version='0.1',
     author='Petro Maksymovych',
     author_email='pmax20@gmail.com',
