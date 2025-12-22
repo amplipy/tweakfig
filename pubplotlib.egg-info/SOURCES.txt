@@ -1,7 +1,0 @@
-LICENSE
-README.md
-setup.py
-pubplotlib.egg-info/PKG-INFO
-pubplotlib.egg-info/SOURCES.txt
-pubplotlib.egg-info/dependency_links.txt
-pubplotlib.egg-info/top_level.txt
