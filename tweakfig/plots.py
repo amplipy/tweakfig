@@ -694,3 +694,152 @@ def savefig_tight(fig, path, dpi=300, transparent=True, autocrop=True,
     # Autocrop if PNG
     if autocrop and path.lower().endswith('.png'):
         autocrop_png(path, path, border=border)
+
+# =============================================================================
+# Figure Adjustment Utilities
+# =============================================================================
+
+def adjust(fig=None, figsize=None, fontsize=1.0, dpi=None, tight=True):
+    """
+    Adjust the current or specified figure's size, font scaling, and layout.
+    
+    This is a convenience function for quickly tweaking figure appearance
+    after creation. Call it before plt.show() to apply adjustments.
+    
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure, optional
+        Figure to adjust. If None, uses plt.gcf() (current figure).
+    figsize : tuple of (width, height), optional
+        New figure size in inches. If None, keeps current size.
+    fontsize : float, default=1.0
+        Scale factor for all text elements in the figure.
+        - 1.0 = no change
+        - 1.15 = 15% larger fonts
+        - 0.8 = 20% smaller fonts
+    dpi : int, optional
+        New DPI setting. If None, keeps current DPI.
+    tight : bool, default=True
+        Whether to apply tight_layout() after adjustments.
+    
+    Returns
+    -------
+    matplotlib.figure.Figure
+        The adjusted figure object.
+    
+    Examples
+    --------
+    >>> fig, ax = plt.subplots()
+    >>> ax.plot([1, 2, 3], [1, 4, 9])
+    >>> ax.set_xlabel('X axis')
+    >>> ax.set_ylabel('Y axis')
+    >>> adjust(figsize=(8, 6), fontsize=1.15)  # 15% larger fonts
+    >>> plt.show()
+    
+    Notes
+    -----
+    Font scaling works by iterating through all text elements in the figure
+    and multiplying their current size by the fontsize factor. This includes:
+    - Axis labels (xlabel, ylabel)
+    - Axis titles
+    - Tick labels
+    - Legend text
+    - Text annotations
+    - Suptitle
+    """
+    if fig is None:
+        fig = plt.gcf()
+    
+    # Adjust figure size
+    if figsize is not None:
+        fig.set_size_inches(figsize)
+    
+    # Adjust DPI
+    if dpi is not None:
+        fig.set_dpi(dpi)
+    
+    # Scale fonts if fontsize != 1.0
+    if fontsize != 1.0:
+        _scale_figure_fonts(fig, fontsize)
+    
+    # Apply tight layout
+    if tight:
+        try:
+            fig.tight_layout()
+        except Exception:
+            pass  # Ignore tight_layout errors (e.g., for complex layouts)
+    
+    return fig
+
+
+def _scale_figure_fonts(fig, scale):
+    """
+    Scale all text elements in a figure by a factor.
+    
+    Parameters
+    ----------
+    fig : matplotlib.figure.Figure
+        Figure containing text elements to scale.
+    scale : float
+        Multiplication factor for font sizes.
+    """
+    # Scale suptitle if present
+    if fig._suptitle is not None:
+        current_size = fig._suptitle.get_fontsize()
+        fig._suptitle.set_fontsize(current_size * scale)
+    
+    # Iterate through all axes
+    for ax in fig.get_axes():
+        # Title
+        title = ax.title
+        title.set_fontsize(title.get_fontsize() * scale)
+        
+        # X and Y labels
+        ax.xaxis.label.set_fontsize(ax.xaxis.label.get_fontsize() * scale)
+        ax.yaxis.label.set_fontsize(ax.yaxis.label.get_fontsize() * scale)
+        
+        # Tick labels
+        for label in ax.get_xticklabels():
+            label.set_fontsize(label.get_fontsize() * scale)
+        for label in ax.get_yticklabels():
+            label.set_fontsize(label.get_fontsize() * scale)
+        
+        # Legend
+        legend = ax.get_legend()
+        if legend is not None:
+            for text in legend.get_texts():
+                text.set_fontsize(text.get_fontsize() * scale)
+            # Scale legend title if present
+            title = legend.get_title()
+            if title.get_text():
+                title.set_fontsize(title.get_fontsize() * scale)
+        
+        # Text annotations
+        for text in ax.texts:
+            text.set_fontsize(text.get_fontsize() * scale)
+        
+        # Colorbar label (if axes is a colorbar)
+        if hasattr(ax, 'colorbar') and ax.colorbar is not None:
+            ax.colorbar.ax.yaxis.label.set_fontsize(
+                ax.colorbar.ax.yaxis.label.get_fontsize() * scale
+            )
+
+
+def scale_fonts(scale=1.0, fig=None):
+    """
+    Scale all fonts in a figure by a multiplicative factor.
+    
+    Alias for adjust(fontsize=scale) with no other changes.
+    
+    Parameters
+    ----------
+    scale : float, default=1.0
+        Multiplication factor for all font sizes.
+    fig : matplotlib.figure.Figure, optional
+        Figure to modify. If None, uses current figure.
+    
+    Examples
+    --------
+    >>> scale_fonts(1.2)  # Make all fonts 20% larger
+    """
+    return adjust(fig=fig, fontsize=scale, tight=False)
