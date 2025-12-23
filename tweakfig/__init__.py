@@ -57,6 +57,10 @@ from .plots import (
     
     # Helpers
     normalize,
+    
+    # Figure adjustment
+    adjust,
+    scale_fonts,
 )
 
 __all__ = [
@@ -88,4 +92,8 @@ __all__ = [
     
     # Helpers
     "normalize",
+    
+    # Figure adjustment
+    "adjust",
+    "scale_fonts",
 ]
