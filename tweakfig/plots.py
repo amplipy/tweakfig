@@ -17,7 +17,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 from matplotlib.ticker import AutoMinorLocator, MaxNLocator, LogLocator
-from PIL import Image
+from PIL import Image, ImageChops
+import json
 
 
 # =============================================================================
@@ -843,3 +844,184 @@ def scale_fonts(scale=1.0, fig=None):
     >>> scale_fonts(1.2)  # Make all fonts 20% larger
     """
     return adjust(fig=fig, fontsize=scale, tight=False)
+
+
+
+
+def crop_whitespace(input_path, output_path=None, border=0):
+    """
+    Crops any uniform background color from the edges of a PNG image.
+    Automatically detects the background color from the corners.
+    """
+    img = Image.open(input_path).convert('RGB')
+    
+    # Detect background color from corner pixels
+    pixels = img.load()
+    w, h = img.size
+    corners = [pixels[0,0], pixels[w-1,0], pixels[0,h-1], pixels[w-1,h-1]]
+    # Use the most common corner color as background
+    bgcolor = max(set(corners), key=corners.count)
+    
+    # Create background image and find difference
+    bg = Image.new('RGB', img.size, bgcolor)
+    diff = ImageChops.difference(img, bg)
+    diff = diff.convert('L')  # grayscale
+    
+    # Get bounding box of non-background pixels (threshold of 10 for slight variations)
+    bbox = diff.point(lambda x: 255 if x > 10 else 0).getbbox()
+    
+    if bbox:
+        # Add border padding
+        left = max(bbox[0] - border, 0)
+        upper = max(bbox[1] - border, 0)
+        right = min(bbox[2] + border, w)
+        lower = min(bbox[3] + border, h)
+        cropped = img.crop((left, upper, right, lower))
+        
+        if output_path:
+            cropped.save(output_path)
+        return cropped
+    else:
+        if output_path:
+            img.save(output_path)
+        return img
+
+def autocrop_folder(folder_path, border=0):
+    """
+    Autocrop all PNG files in a folder.
+    Cropped files are saved as *_crop.png
+    """
+    folder = Path(folder_path)
+    png_files = list(folder.glob('*.png'))
+    
+    # Exclude already cropped files
+    png_files = [f for f in png_files if not f.stem.endswith('_crop')]
+    
+    print(f"Found {len(png_files)} PNG files to process")
+    
+    for png_file in png_files:
+        output_name = f"{png_file.stem}_crop.png"
+        output_path = folder / output_name
+        
+        crop_whitespace(str(png_file), str(output_path), border=border)
+        print(f"  {png_file.name} -> {output_name}")
+    
+    print("Done!")
+
+
+
+def save_veusz(filename, datasets, x_label='', y_label='', 
+               x_scale='linear', y_scale='linear',
+               xlim=None, ylim=None):
+    """
+    Save plot data as a single .vsz file that Veusz can directly open.
+    
+    Parameters:
+    -----------
+    filename : str
+        Output filename (without .vsz extension)
+    datasets : list of dict
+        Each dict should have: 'x', 'y', 'color', 'label', 'linestyle' (optional)
+        Example: [{'x': x_arr, 'y': y_arr, 'color': 'blue', 'label': 'Series 1'}]
+    x_label, y_label : str
+        Axis labels (LaTeX supported)
+    x_scale, y_scale : str
+        'linear' or 'log'
+    xlim, ylim : tuple or None
+        Axis limits (min, max)
+    """
+    
+    vsz = "# Veusz saved document (version 3.3)\n\n"
+    
+    # Add datasets
+    for i, ds in enumerate(datasets):
+        x_name = f"x_{i}"
+        y_name = f"y_{i}"
+        x_vals = ','.join([f'{v:.8g}' for v in np.asarray(ds['x'])])
+        y_vals = ','.join([f'{v:.8g}' for v in np.asarray(ds['y'])])
+        vsz += f"SetData('{x_name}', [{x_vals}])\n"
+        vsz += f"SetData('{y_name}', [{y_vals}])\n"
+    
+    # Create page and graph
+    vsz += """
+Add('page', name='page1', autoadd=False)
+To('page1')
+Add('graph', name='graph1', autoadd=False)
+To('graph1')
+Add('axis', name='x', autoadd=False)
+Add('axis', name='y', autoadd=False)
+To('y')
+Set('direction', 'vertical')
+To('..')
+"""
+    
+    # Set axis properties
+    vsz += f"To('x')\nSet('label', r'{x_label}')\n"
+    if x_scale == 'log':
+        vsz += "Set('log', True)\n"
+    if xlim:
+        vsz += f"Set('min', {xlim[0]})\nSet('max', {xlim[1]})\n"
+    vsz += "To('..')\n"
+    
+    vsz += f"To('y')\nSet('label', r'{y_label}')\n"
+    if y_scale == 'log':
+        vsz += "Set('log', True)\n"
+    if ylim:
+        vsz += f"Set('min', {ylim[0]})\nSet('max', {ylim[1]})\n"
+    vsz += "To('..')\n"
+    
+    # Add each dataset as an xy plot
+    for i, ds in enumerate(datasets):
+        name = f"line_{i}"
+        color = ds.get('color', 'black')
+        label = ds.get('label', '')
+        linestyle = ds.get('linestyle', 'solid')
+        
+        vsz += f"Add('xy', name='{name}', autoadd=False)\n"
+        vsz += f"To('{name}')\n"
+        vsz += f"Set('xData', 'x_{i}')\n"
+        vsz += f"Set('yData', 'y_{i}')\n"
+        vsz += f"Set('key', r'{label}')\n"
+        vsz += f"Set('PlotLine/color', '{color}')\n"
+        if linestyle == '--' or linestyle == 'dashed':
+            vsz += "Set('PlotLine/style', 'dashed')\n"
+        vsz += "Set('marker', 'none')\n"
+        vsz += "To('..')\n"
+    
+    # Add key/legend
+    vsz += "Add('key', name='key1', autoadd=False)\n"
+    vsz += "To('key1')\nSet('horzPosn', 'right')\nSet('vertPosn', 'top')\nTo('..')\n"
+    
+    with open(f'{filename}.vsz', 'w') as f:
+        f.write(vsz)
+    
+    print(f"✓ Saved {filename}.vsz")
+    print(f"  Open directly in Veusz: File -> Open -> {filename}.vsz")
+    
+    """
+    # Export figure3_kappa_slices to a single .vsz file
+    plot_ind = slice(5,-1)
+    gT1 = G_Andreev.sel(es=0.05, method='nearest')[plot_ind]
+    gAN = G_Andreev.sel(es=.4, method='nearest')[plot_ind]
+    gTN = G_total.sel(es=.4, method='nearest')[plot_ind]
+    cp = (_swavedidv.T**2)[plot_ind]
+
+    simulatedAfoso = a_fit*gTN_fit + b_fit*gTN_fit**2 + c_fit*gTN_fit**4
+
+    # Create single .vsz file with all data embedded
+    save_veusz('figure3_kappa_slices',
+            datasets=[
+                {'x': cp.values, 'y': kappa_true(cp, gT1), 
+                    'color': 'blue', 'label': 'E=0.05Δ (Andreev)'},
+                {'x': cp.values, 'y': kappa_true(cp, gTN), 
+                    'color': 'orange', 'label': 'E=0.4Δ (Total)'},
+                {'x': cp.values, 'y': kappa_true(cp, gAN), 
+                    'color': 'darkred', 'label': 'E=0.4Δ (Andreev)'},
+                {'x': coupling_fit.values, 'y': kappa_true(coupling_fit, simulatedAfoso), 
+                    'color': 'teal', 'label': 'Fit', 'linestyle': '--'},
+            ],
+            x_label='coupling',
+            y_label='κ',
+            x_scale='log',
+            y_scale='linear')
+    """
