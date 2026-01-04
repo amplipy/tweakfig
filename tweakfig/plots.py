@@ -26,10 +26,15 @@ import json
 # =============================================================================
 
 def PrettyMatplotlib(
-    fig_font_scale=1.0,
+    font_scale=1.0,
+    label_scale=None,
+    tick_scale=None,
+    legend_scale=None,
+    title_scale=None,
     minor_tick_size=0.5,
     major_tick_size=1.0,
     font_family='Arial',
+    fig_font_scale=None,  # Deprecated alias for font_scale
     **kwargs
 ):
     """
@@ -40,31 +45,69 @@ def PrettyMatplotlib(
     
     Parameters
     ----------
-    fig_font_scale : float, default=1.0
+    font_scale : float, default=1.0
         Scale factor for all font sizes. Use >1 for larger text.
+        This is the base scale that applies to all text elements unless
+        overridden by specific scale parameters.
+    label_scale : float, optional
+        Scale factor for axis labels (xlabel, ylabel). 
+        If None, uses font_scale.
+    tick_scale : float, optional
+        Scale factor for tick labels (numbers on axes).
+        If None, uses font_scale.
+    legend_scale : float, optional
+        Scale factor for legend text.
+        If None, uses font_scale.
+    title_scale : float, optional
+        Scale factor for axes titles.
+        If None, uses font_scale.
     minor_tick_size : float, default=0.5
         Scale factor for minor tick length and width.
     major_tick_size : float, default=1.0
         Scale factor for major tick length and width.
     font_family : str, default='Arial'
         Font family for all text elements.
+    fig_font_scale : float, optional
+        Deprecated alias for font_scale (for backward compatibility).
     **kwargs : dict
         Additional matplotlib rcParams to set (e.g., 'figure.dpi': 150).
     
     Examples
     --------
     >>> import tweakfig.plots as tfp
-    >>> tfp.PrettyMatplotlib(fig_font_scale=1.2)
-    >>> # All subsequent plots will use the new style
+    >>> # Scale all fonts uniformly
+    >>> tfp.Pretty(font_scale=1.2)
+    
+    >>> # Scale all fonts, but make tick labels smaller
+    >>> tfp.Pretty(font_scale=1.2, tick_scale=1.0)
+    
+    >>> # Fine-grained control
+    >>> tfp.Pretty(font_scale=1.0, label_scale=1.3, tick_scale=0.9, legend_scale=1.1)
     """
-    # Font sizes (base sizes scaled by fig_font_scale)
-    mpl.rcParams["axes.labelsize"] = fig_font_scale * 14
-    mpl.rcParams["axes.titlesize"] = fig_font_scale * 16
+    # Handle deprecated fig_font_scale parameter
+    if fig_font_scale is not None:
+        font_scale = fig_font_scale
+    
+    # Resolve individual scales - use font_scale as default if not specified
+    _label_scale = label_scale if label_scale is not None else font_scale
+    _tick_scale = tick_scale if tick_scale is not None else font_scale
+    _legend_scale = legend_scale if legend_scale is not None else font_scale
+    _title_scale = title_scale if title_scale is not None else font_scale
+    
+    # Base font sizes (in points)
+    BASE_LABEL_SIZE = 14
+    BASE_TITLE_SIZE = 16
+    BASE_TICK_SIZE = 12
+    BASE_LEGEND_SIZE = 12
+    
+    # Apply scaled font sizes
+    mpl.rcParams["axes.labelsize"] = _label_scale * BASE_LABEL_SIZE
+    mpl.rcParams["axes.titlesize"] = _title_scale * BASE_TITLE_SIZE
     mpl.rcParams['font.family'] = font_family
-    mpl.rcParams['xtick.labelsize'] = fig_font_scale * 12
-    mpl.rcParams['ytick.labelsize'] = fig_font_scale * 12
+    mpl.rcParams['xtick.labelsize'] = _tick_scale * BASE_TICK_SIZE
+    mpl.rcParams['ytick.labelsize'] = _tick_scale * BASE_TICK_SIZE
     mpl.rcParams["axes.labelpad"] = 0.7
-    mpl.rcParams["legend.fontsize"] = fig_font_scale * 12
+    mpl.rcParams["legend.fontsize"] = _legend_scale * BASE_LEGEND_SIZE
 
     # Tick sizes
     mpl.rcParams['xtick.major.size'] = major_tick_size * 6
