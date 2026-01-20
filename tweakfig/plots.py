@@ -18,6 +18,7 @@ from matplotlib import pyplot as plt
 import matplotlib as mpl
 from matplotlib.ticker import AutoMinorLocator, MaxNLocator, LogLocator
 from PIL import Image, ImageChops
+from pathlib import Path
 import json
 
 
@@ -130,8 +131,8 @@ def PrettyMatplotlib(
     mpl.rcParams['ytick.major.width'] = major_tick_size
 
     # Set default figure size and dpi
-    mpl.rcParams['figure.figsize'] = (11, 4.5)
-    mpl.rcParams['figure.dpi'] = 96
+    mpl.rcParams['figure.figsize'] = (6, 3.7)
+    mpl.rcParams['figure.dpi'] = 120
 
     # Apply any additional user-specified rcParams
     for key, value in kwargs.items():
@@ -175,7 +176,7 @@ def set_preset(preset='default'):
     """
     presets = {
         'default': {
-            'fig_font_scale': 1.0,
+            'fig_font_scale': 1.5,
             'font_family': 'Arial',
         },
         'nature': {
