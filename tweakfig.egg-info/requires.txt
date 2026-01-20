@@ -1,0 +1,8 @@
+numpy
+matplotlib
+seaborn
+pillow
+
+[dev]
+pytest
+jupyter

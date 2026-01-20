@@ -129,6 +129,10 @@ def PrettyMatplotlib(
     mpl.rcParams['xtick.major.width'] = major_tick_size
     mpl.rcParams['ytick.major.width'] = major_tick_size
 
+    # Set default figure size and dpi
+    mpl.rcParams['figure.figsize'] = (11, 4.5)
+    mpl.rcParams['figure.dpi'] = 96
+
     # Apply any additional user-specified rcParams
     for key, value in kwargs.items():
         mpl.rcParams[key] = value

@@ -54,6 +54,8 @@ from .plots import (
     savefig_tight,
     autocrop_png,
     autocrop_png_whitespace,
+    save_veusz,
+    crop_whitespace,
     
     # Helpers
     normalize,
@@ -89,6 +91,8 @@ __all__ = [
     "savefig_tight",
     "autocrop_png",
     "autocrop_png_whitespace",
+    "save_veusz",
+    "crop_whitespace",
     
     # Helpers
     "normalize",
